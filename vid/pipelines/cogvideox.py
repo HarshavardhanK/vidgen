@@ -1,0 +1,1 @@
+#cogVideoX - start from this model

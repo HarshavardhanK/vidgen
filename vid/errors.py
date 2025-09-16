@@ -1,0 +1,1 @@
+#define custom exceptions for the video generation pipeline

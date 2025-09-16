@@ -1,0 +1,1 @@
+#maybe try NVIDIA Cosmos next
