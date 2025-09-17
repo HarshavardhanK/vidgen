@@ -44,4 +44,3 @@ class VideoInfo(BaseModel):
 
 class VideoListResponse(BaseModel):
     videos: List[VideoInfo]
-    total: int

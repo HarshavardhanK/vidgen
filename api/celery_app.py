@@ -3,10 +3,10 @@
 import os
 from celery import Celery
 
-redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-database_url = os.getenv("DATABASE_URL", "postgresql://videogen:videogen123@localhost:5432/videogen")
+redis_url = os.getenv("REDIS_URL")
+database_url = os.getenv("DATABASE_URL")
 
-#Hybrid approach: Redis broker + PostgreSQL backend
+#Redis broker + PostgreSQL backend
 celery_app = Celery("videogen", broker=redis_url, backend=f"db+{database_url}")
 
 celery_app.conf.update(

@@ -2,57 +2,144 @@
 
 import uuid
 from fastapi import APIRouter, HTTPException
-from ..schemas import GenerationRequest, JobSubmissionResponse, JobStatusResponse, JobStatus
+from sqlalchemy import text
+
+from ..schemas import GenerationRequest, JobSubmissionResponse, JobStatusResponse, JobStatus, VideoInfo, VideoListResponse
 from ..celery_app import celery_app
+
+from ..db import get_engine
+from typing import List
 
 router = APIRouter()
 
 @router.post("/generate", response_model=JobSubmissionResponse)
 def submit_generation_job(request: GenerationRequest):
     
-    #Submit task to Celery
     task = celery_app.send_task('api.tasks.generate_video', args=[request.prompt, request.fps])
+    celery_task_id = task.id
+    
+    #insert DB record with the celery_task_id
+    with get_engine().begin() as conn:
+        
+        row = conn.execute(
+            text(
+                """
+                INSERT INTO video_generation_jobs (
+                    celery_task_id, user_id, prompt, duration, fps, priority, status
+                ) VALUES (
+                    :task_id, NULL, :prompt, :duration, :fps, :priority, 'pending'
+                )
+                RETURNING id
+                """
+            ),
+            
+            {
+                "task_id": celery_task_id,
+                "prompt": request.prompt,
+                "duration": 5,
+                "fps": request.fps,
+                "priority": 0,
+            },
+            
+        ).one()
+        
+        job_id = row[0]
     
     return JobSubmissionResponse(
         success=True,
-        job_id=task.id,
+        job_id=str(job_id),
         message="Generation job submitted successfully"
     )
 
 @router.get("/job/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     
-    #get task from Celery
-    task = celery_app.AsyncResult(job_id)
+    #query DB + celery_taskmeta directly
+    with get_engine().connect() as conn:
+        
+        res = conn.execute(
+            text(
+                """
+                SELECT ct.status, j.output_file_path
+                FROM video_generation_jobs j
+                LEFT JOIN celery_taskmeta ct ON j.celery_task_id = ct.task_id
+                WHERE j.id = :job_id
+                """
+            ),
+            {"job_id": job_id},
+            
+        ).first()
+        
+        if not res:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        task_state, output_path = res[0], res[1]
     
-    if task.state == "PENDING":
+    if task_state == "PENDING" or task_state is None:
         status = JobStatus.PENDING
         message = "Job is pending"
         result = None
         
-    elif task.state == "STARTED":
+    elif task_state == "STARTED":
         status = JobStatus.RUNNING
         message = "Job is running"
         result = None
         
-    elif task.state == "SUCCESS":
+    elif task_state == "SUCCESS":
         status = JobStatus.COMPLETED
         message = "Job completed successfully"
-        result = task.result
+        result = output_path
         
-    elif task.state == "FAILURE":
+    elif task_state == "FAILURE":
         status = JobStatus.FAILED
-        message = f"Job failed: {str(task.info)}"
+        message = "Job failed"
         result = None
         
     else:
         status = JobStatus.PENDING
-        message = f"Job state: {task.state}"
+        message = f"Job state: {task_state}"
         result = None
     
     return JobStatusResponse(
         job_id=job_id,
         status=status,
         message=message,
-        result=result
+        result=result,
     )
+
+@router.get("/videos", response_model=VideoListResponse)
+async def list_completed_videos():
+    
+    """List all completed video generation jobs"""
+    
+    #TODO: add user_id filter
+    #TODO: maybe add pagination
+    
+    with get_engine().connect() as conn:
+        
+        videos_res = conn.execute(
+            
+            text(
+                """
+                SELECT id, output_file_path, file_size_bytes, submitted_at, completed_at
+                FROM video_generation_jobs 
+                WHERE status = 'completed'
+                ORDER BY completed_at DESC
+                """
+            )
+            
+        ).fetchall()
+    
+    videos = []
+    
+    for row in videos_res:
+        
+        videos.append(VideoInfo(
+            job_id=str(row[0]),
+            filename=row[1] or "unknown",
+            file_size=row[2] or 0,
+            created_at=row[3],
+            status=JobStatus.COMPLETED
+        ))
+    
+    return VideoListResponse(videos=videos)
