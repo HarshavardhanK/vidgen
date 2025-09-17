@@ -22,8 +22,8 @@ class CogVideoX(VideoGenerator):
             prompt=prompt,
             num_videos_per_prompt=kw.get('num_videos_per_prompt', 1),
             num_inference_steps=kw.get('num_inference_steps', 50),
-            num_frames=kw.get('num_frames', 36),
-            guidance_scale=kw.get('guidance_scale', 4.5),
+            num_frames=kw.get('num_frames', 96),
+            guidance_scale=kw.get('guidance_scale', 6.5),
             generator=kw.get('generator', None)
             
         )

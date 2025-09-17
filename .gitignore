@@ -325,3 +325,4 @@ videogen/output/
 videogen/models/
 videogen/temp/
 videogen/logs/
+.env
