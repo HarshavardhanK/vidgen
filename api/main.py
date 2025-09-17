@@ -12,13 +12,21 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .celery_app import celery_app, test_task
 from .routers import generate
+from .logging_config import logger
 
 from .metrics import (
     get_health_status, get_metrics_response, increment_counter,
     check_database, check_redis, get_gpu_metrics, get_active_workers, get_queue_length
 )
 
+#Initialize logging
+logger.info("FastAPI application starting up")
+
 app = FastAPI(title="videogen")
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Video generation API started successfully")
 
 #Test Celery endpoint
 @app.get("/test-celery")
@@ -34,10 +42,17 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         
+        #Log request
+        logger.info(f"Request: {request.method} {request.url.path}")
+        
         response = await call_next(request)
         
         #Record basic metrics
         increment_counter('api_requests_total')
+        
+        #Log response
+        duration = time.time() - start_time
+        logger.info(f"Response: {response.status_code} - {duration:.3f}s")
         
         return response
 
@@ -45,7 +60,10 @@ app.add_middleware(MetricsMiddleware)
 
 @app.get("/health")
 async def health():
+    
     """Health check with service status and worker metrics"""
+    
+    logger.info("Health check requested")
     gpu_metrics = get_gpu_metrics()
     
     #Check all services
@@ -59,6 +77,8 @@ async def health():
         
     if db_status['status'] != "healthy" or redis_status['status'] != "healthy":
         overall_status = "unhealthy"
+    
+    logger.info(f"Health check result: {overall_status}")
     
     return {
         

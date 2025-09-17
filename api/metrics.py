@@ -30,6 +30,7 @@ def get_gpu_metrics() -> Dict[str, Any]:
         import torch
         
         if torch.cuda.is_available():
+            
             device = torch.cuda.current_device()
             
             return {
@@ -138,6 +139,7 @@ def get_health_status() -> Dict[str, Any]:
 def get_metrics_response() -> Dict[str, Any]:
     
     """Get all metrics in a simple format"""
+    
     gpu_metrics = get_gpu_metrics()
     
     return {

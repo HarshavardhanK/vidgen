@@ -9,10 +9,12 @@ from vid.runtime import get_generator
 
 from .db import get_engine
 from .metrics import increment_counter
+from .logging_config import logger
 
 
 def _db_exec(stmt: str, params: dict) -> None:
     #helper for task DB writes
+    
     with get_engine().begin() as conn:
         conn.execute(text(stmt), params)
 
@@ -20,6 +22,7 @@ def _db_exec(stmt: str, params: dict) -> None:
 def generate_video(self, prompt: str, fps: int = 24) -> str:
     
     task_id = self.request.id
+    logger.info(f"Starting video generation: task_id={task_id}, prompt='{prompt}', fps={fps}")
     
     _db_exec(
         "SELECT update_video_generation_status(:task_id, :status)",
@@ -27,10 +30,12 @@ def generate_video(self, prompt: str, fps: int = 24) -> str:
     )
     
     gen = get_generator() #loads model once (GPU)
+    logger.info(f"Model loaded for task {task_id}")
     
     self.update_state(state="STARTED", meta={"progress": 0.1})
     
     try:
+        logger.info(f"Generating video for task {task_id}")
         res = gen.generate(prompt, fps=fps)
         
         output_dir = "/app/output"
@@ -41,6 +46,8 @@ def generate_video(self, prompt: str, fps: int = 24) -> str:
         
         file_size = os.path.getsize(out) if os.path.exists(out) else None
         video_duration = getattr(res, "duration", None) or float(len(res.frames)) / float(res.fps)
+        
+        logger.info(f"Video generation completed: task_id={task_id}, file_size={file_size}, duration={video_duration}")
         
         _db_exec(
             "SELECT update_video_generation_result(:task_id, :path, :size, :duration)",
@@ -53,6 +60,8 @@ def generate_video(self, prompt: str, fps: int = 24) -> str:
         return out
     
     except Exception as e:
+        
+        logger.error(f"Video generation failed: task_id={task_id}, error={str(e)}")
         
         #update DB with error
         _db_exec(
