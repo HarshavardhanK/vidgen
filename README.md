@@ -1,4 +1,4 @@
-## videogen
+## videogen - Video Generation Pipeline
 
 Generate videos via FastAPI + Celery on NVIDIA H100.
 
@@ -39,6 +39,3 @@ Configure in `.env` (see `.env.example`). Typical variables:
 ### Fresh deployments
 - Clean volume is created for Postgres
 - DB init job applies tables, indexes, and functions
-
-
-# Video Generation Pipeline
