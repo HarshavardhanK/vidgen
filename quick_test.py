@@ -33,11 +33,8 @@ def submit_request(prompt, fps=24):
 
 #test prompts
 prompts = [
-    "A cat walking in a garden",
-    "A dog running in a park", 
-    "A bird flying over the ocean",
-    "A fish swimming in clear water",
-    "A butterfly landing on a flower"
+    "A Buddist monk meditating in a temple",
+    "A jet fighter flying over the ocean",
 ]
 
 print(f"Submitting {len(prompts)} generation requests")
