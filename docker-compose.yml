@@ -5,54 +5,109 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
   videogen:
     build: .
     ports:
       - "8000:8000"
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
       - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
     depends_on:
-      - redis
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      redis:
+        condition: service_healthy
     volumes:
       - ./output:/app/output
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   celery-worker:
     build: .
-    command: celery -A api.celery_app worker --loglevel=info
+    command: >
+      celery -A api.celery_app worker
+      --loglevel=INFO
+      --pool=solo
+      --concurrency=1
+      --queues=celery
+      --hostname=gpu-worker@%h
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
       - REDIS_URL=redis://redis:6379/0
+      - C_FORCE_ROOT=true
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      #Optimize for H100
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - CUDA_LAUNCH_BLOCKING=0
     depends_on:
-      - redis
-      
+      redis:
+        condition: service_healthy
+      videogen:
+        condition: service_started
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: ['0']
               capabilities: [gpu]
+        limits:
+          memory: 32G  # Prevent CPU memory issues
     volumes:
       - ./output:/app/output
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "celery", "-A", "api.celery_app", "inspect", "ping", "-d", "gpu-worker@celery-worker"]
+      interval: 45s
+      timeout: 15s
+      retries: 3
+      start_period: 120s  #time for model loading
+    restart: unless-stopped
 
   celery-flower:
     build: .
-    command: celery -A api.celery_app flower --port=5555
+    command: >
+      celery -A api.celery_app flower
+      --port=5555
+      --basic_auth=admin:videogen123
+      --persistent=true
+      --db=/app/flower.db
     ports:
       - "5555:5555"
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      celery-worker:
+        condition: service_started
+    volumes:
+      - flower_data:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/api/workers"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
 
 volumes:
   redis_data:
+    driver: local
+  flower_data:
+    driver: local
