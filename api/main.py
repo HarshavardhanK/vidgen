@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 import torch
+from .routers import generate
 
 app = FastAPI(title="videogen")
 
@@ -23,3 +24,7 @@ def health():
         }
         
     return {"ok": ok, "gpu": gpu}
+
+#include routers
+app.include_router(generate.router, prefix="/api/v1", tags=["generation"])
+
