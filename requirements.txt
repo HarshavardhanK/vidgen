@@ -22,5 +22,10 @@ pydantic>=2.9.0
 
 #Task Queue
 celery==5.5.3
+celery[sqlalchemy]
 redis==5.0.1
 flower>=2.0.1
+
+#Database
+psycopg2-binary
+sqlalchemy>=2.0.0
