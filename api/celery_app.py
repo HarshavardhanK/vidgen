@@ -1,19 +1,16 @@
 #Celery application configuration
 
-import os
 from celery import Celery
-
-redis_url = os.getenv("REDIS_URL")
-database_url = os.getenv("DATABASE_URL")
+from .config import config
 
 #Redis broker + PostgreSQL backend
-celery_app = Celery("videogen", broker=redis_url, backend=f"db+{database_url}")
+celery_app = Celery("videogen", broker=config.REDIS_URL, backend=f"db+{config.DATABASE_URL}")
 
 celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,   #don't pile up tasks in the worker
-    task_time_limit=900,            #hard kill at 15m
-    task_soft_time_limit=840,       #soft timeout
+    task_time_limit=config.TASK_TIME_LIMIT,            #hard kill at 15m
+    task_soft_time_limit=config.TASK_SOFT_TIME_LIMIT,  #soft timeout
 )
 
 #Test task

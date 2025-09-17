@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 #simple SQLAlchemy Core helper
 
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from .config import config
 
 
 _engine: Engine | None = None
 
 
 def get_engine() -> Engine:
-    #reads DATABASE_URL
+    #reads DATABASE_URL from config
     global _engine
     
     if _engine is None:
-        dsn = os.getenv("DATABASE_URL")
+        dsn = config.DATABASE_URL
         
         if not dsn:
             raise RuntimeError("DATABASE_URL not set")

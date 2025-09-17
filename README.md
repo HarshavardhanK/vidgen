@@ -41,6 +41,12 @@ Configure in `.env` (see `.env.example`). Typical variables:
 - `DATABASE_URL`, `REDIS_URL`, `FLOWER_BASIC_AUTH`
 - `ENVIRONMENT`, `LOG_LEVEL`
 
+### Configuration Management
+- Centralized config in `api/config.py` with environment-specific settings
+- Configuration validation on startup
+- Environment variables with sensible defaults
+- No secrets hard-coded in source code
+
 ### Fresh deployments
 - Clean volume is created for Postgres
 - DB init job applies tables, indexes, and functions

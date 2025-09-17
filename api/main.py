@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .celery_app import celery_app, test_task
 from .routers import generate
 from .logging_config import logger
+from .config import config
 
 from .metrics import (
     get_health_status, get_metrics_response, increment_counter,
@@ -21,6 +22,9 @@ from .metrics import (
 
 #Initialize logging
 logger.info("FastAPI application starting up")
+
+#Log configuration
+logger.info(f"Configuration loaded - Environment: {config.ENVIRONMENT}, Debug: {config.DEBUG}")
 
 app = FastAPI(title="videogen")
 
@@ -42,7 +46,6 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         
-        #Log request
         logger.info(f"Request: {request.method} {request.url.path}")
         
         response = await call_next(request)
@@ -50,7 +53,6 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         #Record basic metrics
         increment_counter('api_requests_total')
         
-        #Log response
         duration = time.time() - start_time
         logger.info(f"Response: {response.status_code} - {duration:.3f}s")
         
