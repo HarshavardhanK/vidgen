@@ -30,6 +30,11 @@ docker compose up -d --build
 - Completed videos: `GET http://localhost:8000/api/v1/videos`
 - Flower UI (optional): `http://localhost:5555`
 
+### Logging
+- View logs: `docker compose logs -f videogen` (API) or `docker compose logs -f celery-worker` (tasks)
+- Portainer UI: `http://localhost:9000` → Containers → Logs
+- Log files: `logs/app.log` (structured logging with rotation)
+
 ### Environment
 Configure in `.env` (see `.env.example`). Typical variables:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
