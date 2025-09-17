@@ -1,12 +1,20 @@
-version: '3.8'
-
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   videogen:
     build: .
     ports:
       - "8000:8000"
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
     deploy:
       resources:
         reservations:
@@ -16,3 +24,35 @@ services:
               capabilities: [gpu]
     volumes:
       - ./output:/app/output
+
+  celery-worker:
+    build: .
+    command: celery -A api.celery_app worker --loglevel=info
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ./output:/app/output
+
+  celery-flower:
+    build: .
+    command: celery -A api.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+
+volumes:
+  redis_data:
