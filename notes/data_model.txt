@@ -1,0 +1,13 @@
+// POST /generate -> 202
+{ "job_id": "uuid", "status_url": "/status/uuid", "result_url": "/result/uuid" }
+
+// GET /status/{job_id}
+{
+  "job_id": "uuid",
+  "status": "queued|running|completed|failed|timed_out|cancelled",
+  "submitted_at": "2025-09-16T20:10:00Z",
+  "started_at": "2025-09-16T20:11:02Z",
+  "ended_at": null,
+  "progress": 0.42,
+  "error": null
+}
