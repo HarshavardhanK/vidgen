@@ -8,6 +8,7 @@ from diffusers.utils import export_to_video
 from vid.runtime import get_generator
 
 from .db import get_engine
+from .metrics import increment_counter
 
 
 def _db_exec(stmt: str, params: dict) -> None:
@@ -46,6 +47,9 @@ def generate_video(self, prompt: str, fps: int = 24) -> str:
             {"task_id": task_id, "path": out, "size": file_size, "duration": video_duration},
         )
         
+        #Track successful generation
+        increment_counter('video_generations_total')
+        
         return out
     
     except Exception as e:
@@ -55,5 +59,8 @@ def generate_video(self, prompt: str, fps: int = 24) -> str:
             "SELECT update_video_generation_error(:task_id, :err)",
             {"task_id": task_id, "err": str(e)},
         )
+        
+        #Track failed generation
+        increment_counter('video_generations_failed')
         
         raise
