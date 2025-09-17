@@ -1,7 +1,8 @@
 #Define Pydantic models for the API
 
 from pydantic import BaseModel
-from typing import Optional, Union
+from typing import Optional, Union, List
+from datetime import datetime
 
 from enum import Enum
 import uuid
@@ -33,3 +34,14 @@ class JobStatusResponse(BaseModel):
     status: JobStatus
     message: str
     result: Optional[Union[str, dict]] = None
+
+class VideoInfo(BaseModel):
+    job_id: str
+    filename: str
+    file_size: int
+    created_at: datetime
+    status: JobStatus
+
+class VideoListResponse(BaseModel):
+    videos: List[VideoInfo]
+    total: int
