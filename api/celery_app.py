@@ -21,7 +21,12 @@ def test_task(message):
 def register_tasks():
     from . import tasks
 
-    celery_app.task(bind=True, name='api.tasks.generate_video')(tasks.generate_video)
+    celery_app.task(
+        bind=True,
+        name='api.tasks.generate_video',
+        autoretry_for=(Exception,), #TODO: I think this can be improved. Exception is generic.
+        retry_kwargs={'max_retries': 3, 'countdown': 60},
+    )(tasks.generate_video)
 
 register_tasks()
 
