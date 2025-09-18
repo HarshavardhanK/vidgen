@@ -20,8 +20,6 @@ Generate videos via FastAPI + Celery on NVIDIA H100.
 **Model:** `THUDM/CogVideoX-2b`
 - **Access Method:** Direct download from HuggingFace Hub (public model)
 - **Authentication:** None required - model is publicly available
-- **Location:** `vid/pipelines/cogvideox.py`
-- **Loading:** Uses `diffusers.CogVideoXPipeline.from_pretrained()`
 
 **For Private/Gated Models (Future):**
 If switching to private or gated models, add HuggingFace authentication:
