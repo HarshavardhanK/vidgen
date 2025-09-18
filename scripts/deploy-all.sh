@@ -28,7 +28,7 @@ kubectl apply -f k3s/pvc.yaml
 kubectl apply -f k3s/postgres.yaml
 kubectl apply -f k3s/redis.yaml
 
-sleep 20 #sleep to apply changes
+sleep 30 #sleep to apply changes
 
 kubectl apply -f k3s/api-deployment.yaml
 kubectl apply -f k3s/worker-deployment.yaml
