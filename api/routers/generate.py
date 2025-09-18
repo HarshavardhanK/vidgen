@@ -3,6 +3,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
+from pydantic import ValidationError
 
 from ..schemas import GenerationRequest, JobSubmissionResponse, JobStatusResponse, JobStatus, VideoInfo, VideoListResponse
 from ..celery_app import celery_app
@@ -14,6 +15,19 @@ router = APIRouter()
 
 @router.post("/generate", response_model=JobSubmissionResponse)
 def submit_generation_job(request: GenerationRequest):
+    
+    #Additional validation beyond Pydantic
+    if not request.user_id or not request.user_id.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="user_id is mandatory and cannot be empty"
+        )
+    
+    if not request.prompt or not request.prompt.strip():
+        raise HTTPException(
+            status_code=400, 
+            detail="prompt is mandatory and cannot be empty"
+        )
     
     task = celery_app.send_task('api.tasks.generate_video', args=[request.prompt, request.fps, request.user_id])
     celery_task_id = task.id
@@ -55,6 +69,17 @@ def submit_generation_job(request: GenerationRequest):
 @router.get("/job/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str, user_id: str = Query(None, description="User ID for authorization")):
     
+    
+    try:
+        uuid.UUID(job_id)
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    
+    #Validate user_id if provided
+    if user_id is not None and (not user_id or not user_id.strip()):
+        raise HTTPException(status_code=400, detail="user_id cannot be empty if provided")
+    
     #query DB + celery_taskmeta directly
     with get_engine().connect() as conn:
         
@@ -84,7 +109,12 @@ async def get_job_status(job_id: str, user_id: str = Query(None, description="Us
             ).first()
         
         if not res:
-            raise HTTPException(status_code=404, detail="Job not found")
+            
+            if user_id:
+                raise HTTPException(status_code=404, detail="Job not found or access denied")
+            
+            else:
+                raise HTTPException(status_code=404, detail="Job not found")
         
         task_state, output_path = res[0], res[1]
     
@@ -124,6 +154,10 @@ async def get_job_status(job_id: str, user_id: str = Query(None, description="Us
 async def list_completed_videos(user_id: str = Query(None, description="Filter videos by user ID")):
     
     """List all completed video generation jobs"""
+    
+    #Validate user_id if provided
+    if user_id is not None and (not user_id or not user_id.strip()):
+        raise HTTPException(status_code=400, detail="user_id cannot be empty if provided")
     
     with get_engine().connect() as conn:
         
