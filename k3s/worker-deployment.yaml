@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: videogen-worker
+  namespace: videogen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: videogen-worker
+  template:
+    metadata:
+      labels:
+        app: videogen-worker
+    spec:
+      runtimeClassName: nvidia
+      terminationGracePeriodSeconds: 120
+      containers:
+      - name: worker
+        image: videogen:latest
+        imagePullPolicy: IfNotPresent
+        command: ["celery", "-A", "api.celery_app", "worker", "--pool=solo", "--concurrency=1", "--queues=celery", "--hostname=gpu-worker@%h"]
+        envFrom:
+        - secretRef:
+            name: videogen-secrets
+        - configMapRef:
+            name: videogen-config
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "8Gi"
+          limits:
+            memory: "24Gi"
+        volumeMounts:
+        - name: output
+          mountPath: /app/output
+      volumes:
+      - name: output
+        persistentVolumeClaim:
+          claimName: videogen-output
+
+
+

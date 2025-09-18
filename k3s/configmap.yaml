@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: videogen-config
+  namespace: videogen
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  OUTPUT_DIR: "/app/output"
+  LOGS_DIR: "/app/logs"
+
+
+

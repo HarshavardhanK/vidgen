@@ -24,37 +24,29 @@ def get_counter(metric_name: str) -> int:
     return _metrics.get(metric_name, 0)
 
 def get_gpu_metrics() -> Dict[str, Any]:
-    """Get GPU memory usage metrics"""
+    """Get GPU availability status from worker"""
+    
     try:
+        #Check if we have active workers (indicates GPU system is working)
+        active_workers = get_active_workers()
         
-        import torch
+        #For API pod, we report GPU availability based on worker status
+        #The actual GPU metrics should come from the worker pod since it has access to the GPU
+        return {
+            'gpu_available': active_workers > 0,  #GPU available if workers are active
+            'gpu_memory_used_mb': 0,  #API pod doesn't track GPU memory
+            'gpu_memory_reserved_mb': 0,
+            'gpu_memory_total_mb': 0,
+            'worker_status': 'running' if active_workers > 0 else 'no_workers'
+        }
         
-        if torch.cuda.is_available():
-            
-            device = torch.cuda.current_device()
-            
-            return {
-                'gpu_available': True,
-                'gpu_memory_used_mb': torch.cuda.memory_allocated(device) // (1024**2),
-                'gpu_memory_reserved_mb': torch.cuda.memory_reserved(device) // (1024**2),
-                'gpu_memory_total_mb': torch.cuda.get_device_properties(device).total_memory // (1024**2)
-            }
-            
-        else:
-            return {
-                'gpu_available': False,
-                'gpu_memory_used_mb': 0,
-                'gpu_memory_reserved_mb': 0,
-                'gpu_memory_total_mb': 0
-            }
-            
     except Exception:
-        
         return {
             'gpu_available': False,
             'gpu_memory_used_mb': 0,
             'gpu_memory_reserved_mb': 0,
-            'gpu_memory_total_mb': 0
+            'gpu_memory_total_mb': 0,
+            'worker_status': 'error'
         }
 
 def get_active_workers() -> int:
@@ -143,16 +135,19 @@ def get_metrics_response() -> Dict[str, Any]:
     gpu_metrics = get_gpu_metrics()
     
     return {
+        
         'timestamp': datetime.utcnow().isoformat(),
         'system': {
             'api_requests_total': get_counter('api_requests_total'),
             'active_workers': get_active_workers(),
             'queue_length': get_queue_length()
         },
+        
         'gpu': gpu_metrics,
         'video_generation': {
             'total': get_counter('video_generations_total'),
             'failed': get_counter('video_generations_failed')
         },
+        
         'uptime_seconds': time.time() - _metrics.get('start_time', time.time())
     }

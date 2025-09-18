@@ -30,6 +30,8 @@ app = FastAPI(title="videogen")
 
 @app.on_event("startup")
 async def startup_event():
+    from .db_init import run_migrations
+    run_migrations()
     logger.info("Video generation API started successfully")
 
 #Test Celery endpoint
@@ -73,9 +75,6 @@ async def health():
     redis_status = await check_redis()
     
     overall_status = "healthy"
-    
-    if not gpu_metrics['gpu_available']:
-        overall_status = "degraded"
         
     if db_status['status'] != "healthy" or redis_status['status'] != "healthy":
         overall_status = "unhealthy"
