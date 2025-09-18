@@ -16,6 +16,40 @@ Generate videos via FastAPI + Celery on NVIDIA H100.
 - PostgreSQL for job metadata and results
 - CogVideoX-2B model running on H100 GPU for text-to-video generation
 
+### Video Model
+**Model:** `THUDM/CogVideoX-2b`
+- **Access Method:** Direct download from HuggingFace Hub (public model)
+- **Authentication:** None required - model is publicly available
+- **Location:** `vid/pipelines/cogvideox.py`
+- **Loading:** Uses `diffusers.CogVideoXPipeline.from_pretrained()`
+
+**For Private/Gated Models (Future):**
+If switching to private or gated models, add HuggingFace authentication:
+
+1. Add to `.env`:
+   ```bash
+   HF_TOKEN=your_huggingface_token_here
+   ```
+
+2. Update `api/config.py`:
+   ```python
+   HF_TOKEN = os.getenv('HF_TOKEN')
+   ```
+
+3. Modify model loading:
+   ```python
+   self.pipe = CogVideoXPipeline.from_pretrained(
+       model_id, 
+       torch_dtype=torch.bfloat16,
+       use_auth_token=token  #if token provided
+   ).to("cuda")
+   ```
+
+**Model Caching:**
+- Models are automatically cached in `~/.cache/huggingface/`
+- First download may take time depending on network speed
+- Subsequent loads use cached version
+
 ### System design (K3s orchestration)
 - Single image `videogen:latest` runs API and Worker (separate deployments)
 - API: `replicas: 3`, RollingUpdate (maxSurge=1, maxUnavailable=0), readiness/liveness on `/health`
