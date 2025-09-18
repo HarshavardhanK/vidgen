@@ -1,12 +1,16 @@
 #generate router
 
 import uuid
+import os
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from pydantic import ValidationError
 
 from ..schemas import GenerationRequest, JobSubmissionResponse, JobStatusResponse, JobStatus, VideoInfo, VideoListResponse
 from ..celery_app import celery_app
+from ..config import config
+from ..logging_config import logger
 
 from ..db import get_engine
 from typing import List
@@ -199,3 +203,88 @@ async def list_completed_videos(user_id: str = Query(None, description="Filter v
         ))
     
     return VideoListResponse(videos=videos)
+
+@router.get("/download/{job_id}")
+async def download_video(job_id: str, user_id: str = Query(None, description="User ID for authorization")):
+    """Download the video file for a completed job"""
+    
+    logger.info(f"Download request for job_id: {job_id}, user_id: {user_id}")
+    
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    
+    #validate user_id if provided
+    if user_id is not None and (not user_id or not user_id.strip()):
+        raise HTTPException(status_code=400, detail="user_id cannot be empty if provided")
+    
+    #query database for job info
+    with get_engine().connect() as conn:
+        if user_id:
+            res = conn.execute(
+                text(
+                    """
+                    SELECT user_id, status, output_file_path
+                    FROM video_generation_jobs 
+                    WHERE id = :job_id AND user_id = :user_id
+                    """
+                ),
+                {"job_id": job_id, "user_id": user_id}
+            ).first()
+        else:
+            res = conn.execute(
+                text(
+                    """
+                    SELECT user_id, status, output_file_path
+                    FROM video_generation_jobs 
+                    WHERE id = :job_id
+                    """
+                ),
+                {"job_id": job_id}
+            ).first()
+        
+        if not res:
+            logger.warning(f"Job not found or access denied: job_id={job_id}, user_id={user_id}")
+            if user_id:
+                raise HTTPException(status_code=404, detail="Job not found or access denied")
+            else:
+                raise HTTPException(status_code=404, detail="Job not found")
+        
+        job_user_id, job_status, output_file_path = res[0], res[1], res[2]
+    
+    #check if job is completed
+    if job_status != 'completed':
+        logger.warning(f"Job not completed: job_id={job_id}, status={job_status}")
+        raise HTTPException(status_code=409, detail="Job not completed")
+    
+    #check if output file path exists
+    if not output_file_path:
+        logger.error(f"No output file path for completed job: job_id={job_id}")
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    #resolve full file path
+    if os.path.isabs(output_file_path):
+        file_path = output_file_path
+        
+    else:
+        file_path = os.path.join(config.OUTPUT_DIR, output_file_path)
+    
+    #check if file exists
+    if not os.path.exists(file_path):
+        logger.error(f"Video file missing: {file_path}")
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    #get file info for logging
+    file_size = os.path.getsize(file_path)
+    filename = os.path.basename(file_path)
+    
+    logger.info(f"Serving video file: {filename}, size: {file_size} bytes")
+    
+    #return file response
+    return FileResponse(
+        path=file_path,
+        media_type="video/mp4",
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

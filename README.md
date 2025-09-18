@@ -47,12 +47,32 @@ For Kubernetes (K3s) deployment, see `k3s/README.md` for full cluster setup and 
 - Submit: `POST http://localhost:8000/api/v1/generate` (JSON: prompt, fps)
 - Status: `GET http://localhost:8000/api/v1/job/{job_id}`
 - Completed videos: `GET http://localhost:8000/api/v1/videos`
+- Download video: `GET http://localhost:8000/api/v1/download/{job_id}`
 - Flower UI (optional): `http://localhost:5555`
+
+### Quick Start Demo
+Test the complete video generation pipeline:
+```bash
+./demo.sh
+```
+
+The demo script walks through the entire workflow: health check, job submission, progress monitoring, and video download.
 
 ### Logging
 - View logs: `docker compose logs -f videogen` (API) or `docker compose logs -f celery-worker` (tasks)
 - Portainer UI: `http://localhost:9000` → Containers → Logs
 - Log files: `logs/app.log` (structured logging with rotation)
+
+### Database Schema
+**PostgreSQL Tables:**
+- `video_generation_jobs` - job metadata and status tracking
+- `celery_taskmeta` - Celery task results (auto-created)
+- `celery_tasksetmeta` - Celery task groups (auto-created)
+
+**Storage:**
+- Job queue: Redis broker
+- Task results: PostgreSQL backend
+- Generated videos: `/app/output` filesystem
 
 ### Environment
 Configure in `.env` (see `.env.example`). Typical variables:

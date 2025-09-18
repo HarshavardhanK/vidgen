@@ -22,7 +22,7 @@ GET /metrics
 POST /api/v1/generate
 Content-Type: application/json
 Body: {
-  "user_id": "alice",
+  "user_id": "123",
   "prompt": "A cat dancing",
   "fps": 24
 }
@@ -47,9 +47,24 @@ GET /api/v1/videos
 
 Optional query: `user_id` to filter.
 
+### Download video
+```
+GET /api/v1/download/{job_id}
+200 -> binary MP4 file with Content-Disposition header
+```
+
+Downloads the video file for a completed job. Optional query: `user_id` for authorization.
+
+Example:
+```bash
+curl -O -J "http://localhost:8000/api/v1/download/12345678-1234-1234-1234-123456789abc"
+curl -O -J "http://localhost:8000/api/v1/download/12345678-1234-1234-1234-123456789abc?user_id=alice"
+```
+
 ### Errors
 - 400: bad input (empty `user_id`/`prompt`, invalid `job_id`)
-- 404: job not found
+- 404: job not found, video file not found
+- 409: job not completed (download endpoint)
 - 422: validation errors (standardized JSON in `main.py`)
 
 ### Environment
