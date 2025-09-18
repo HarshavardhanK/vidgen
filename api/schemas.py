@@ -14,6 +14,7 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 class GenerationRequest(BaseModel):
+    user_id: str
     prompt: str
     fps: int = 24
     
@@ -37,6 +38,7 @@ class JobStatusResponse(BaseModel):
 
 class VideoInfo(BaseModel):
     job_id: str
+    user_id: str
     filename: str
     file_size: int
     created_at: datetime
