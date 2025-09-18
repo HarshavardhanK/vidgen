@@ -43,11 +43,6 @@ If switching to private or gated models, add HuggingFace authentication:
    ).to("cuda")
    ```
 
-**Model Caching:**
-- Models are automatically cached in `~/.cache/huggingface/`
-- First download may take time depending on network speed
-- Subsequent loads use cached version
-
 ### System design (K3s orchestration)
 - Single image `videogen:latest` runs API and Worker (separate deployments)
 - API: `replicas: 3`, RollingUpdate (maxSurge=1, maxUnavailable=0), readiness/liveness on `/health`
