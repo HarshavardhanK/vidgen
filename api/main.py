@@ -4,8 +4,9 @@ import os
 import time
 from datetime import datetime
 
-from fastapi import FastAPI, Request
-
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 import torch
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -27,6 +28,72 @@ logger.info("FastAPI application starting up")
 logger.info(f"Configuration loaded - Environment: {config.ENVIRONMENT}, Debug: {config.DEBUG}")
 
 app = FastAPI(title="videogen")
+
+#Custom validation error handler for standardized responses
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom handler for validation errors to provide clean, standardized responses
+    """
+    errors = []
+    
+    for error in exc.errors():
+        
+        field_name = ".".join(str(loc) for loc in error["loc"][1:])
+        
+        error_msg = error["msg"]
+        error_type = error["type"]
+        
+        #Create user-friendly error messages
+        if error_type == "missing":
+            
+            if field_name == "user_id":
+                message = "user_id is required and cannot be empty"
+                
+            elif field_name == "prompt":
+                message = "prompt is required and cannot be empty"
+            else:
+                message = f"{field_name} is required"
+                
+        elif error_type == "value_error":
+            message = error_msg
+            
+        elif "greater_than_equal" in error_type or "less_than_equal" in error_type:
+            message = f"{field_name} value is out of valid range"
+            
+        else:
+            message = f"{field_name}: {error_msg}"
+        
+        errors.append({
+            "field": field_name,
+            "message": message,
+            "type": error_type
+        })
+    
+    return JSONResponse(
+        status_code=422, #unprocessable entity
+        content={
+            "success": False,
+            "error": "Validation failed",
+            "details": errors,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+#Custom HTTP exception handler for consistent error responses
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Custom handler for HTTP exceptions to provide consistent error format
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.detail,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
 
 @app.on_event("startup")
 async def startup_event():

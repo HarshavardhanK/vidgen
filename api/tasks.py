@@ -19,10 +19,10 @@ def _db_exec(stmt: str, params: dict) -> None:
         conn.execute(text(stmt), params)
 
 
-def generate_video(self, prompt: str, fps: int = 24) -> str:
+def generate_video(self, prompt: str, fps: int = 24, user_id: str = None) -> str:
     
     task_id = self.request.id
-    logger.info(f"Starting video generation: task_id={task_id}, prompt='{prompt}', fps={fps}")
+    logger.info(f"Starting video generation: task_id={task_id}, user_id={user_id}, prompt='{prompt}', fps={fps}")
     
     _db_exec(
         "SELECT update_video_generation_status(:task_id, :status)",
